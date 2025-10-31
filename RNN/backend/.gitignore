@@ -10,9 +10,6 @@ __pycache__/
 *$py.class
 *.so
 
-# PyTorch model files (large binary files)
-*.pt
-*.pth
 
 # Data files
 data/
