@@ -136,7 +136,7 @@ def main():
     LABEL_SMOOTHING = 0.25      # Strong label smoothing to prevent overfitting
 
     # Paths
-    DATA_PATH = '../data/training_text.txt'
+    DATA_PATH = r"data\training_text.txt"
     MODEL_DIR = '../saved_models'
     VIZ_DIR = '../visualizations'
     METRICS_PATH = '../visualizations/training_time_metrics.json'
