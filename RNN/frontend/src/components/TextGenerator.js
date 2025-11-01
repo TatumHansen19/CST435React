@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import api from '../services/api';
+import { rnnApi as api } from "../../services/rnnApi.js";
 import './TextGenerator.css';
 
 const TextGenerator = () => {
