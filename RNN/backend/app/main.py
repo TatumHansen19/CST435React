@@ -9,7 +9,8 @@ from fastapi.responses import FileResponse, JSONResponse
 import os
 import sys
 from pathlib import Path
-import time
+import traceback
+import json
 
 # Ensure local imports work
 sys.path.insert(0, str(Path(__file__).parent))
@@ -51,82 +52,88 @@ api = APIRouter(prefix="/api")
 # -------------------------------------------------------------------
 generator: TextGenerator | None = None
 
-_current_dir = Path(__file__).parent
-_backend_dir = _current_dir.parent if _current_dir.name == "app" else _current_dir
-MODEL_PATH = _backend_dir / "saved_models" / "model.h5"
-TOKENIZER_PATH = _backend_dir / "saved_models" / "tokenizer.pkl"
-CONFIG_PATH = _backend_dir / "saved_models" / "config.json"
-
+# Resolve common locations:
+# Your files live at: RNN/backend/saved_models/{model.pt|model.h5, config.json, tokenizer.json}
+_here = Path(__file__).parent
+_backend_root = _here  # this file is inside backend/
+_saved_models_candidates = [
+    _backend_root / "saved_models",      # RNN/backend/saved_models
+    _here / "saved_models",              # RNN/backend/app/saved_models (if you move app/)
+    Path("saved_models"),                # CWD fallback
+]
 
 @app.on_event("startup")
 async def load_model():
-    """Load model on startup."""
+    """Load model on startup with verbose diagnostics and tokenizer.json support."""
     global generator
     try:
-        possible_model_dirs = [
-            str(MODEL_PATH.parent),   # saved_models (absolute)
-            "saved_models",           # relative from app/
-            "../saved_models",        # parent of app/
-        ]
+        print("[BOOT] Looking for model assets in:")
+        for d in _saved_models_candidates:
+            print("  -", d.resolve())
 
-        for model_dir in possible_model_dirs:
-            model_h5 = Path(model_dir) / "model.h5"
-            model_pt = Path(model_dir) / "model.pt"
-            config_file = Path(model_dir) / "config.json"
+        for model_dir in _saved_models_candidates:
+            model_h5 = model_dir / "model.h5"
+            model_pt = model_dir / "model.pt"
+            config_file = model_dir / "config.json"
+            tok_json = model_dir / "tokenizer.json"
+            tok_pkl  = model_dir / "tokenizer.pkl"
 
-            # Prefer PyTorch .pt if present
-            if model_pt.exists():
-                loaded_config = None
-                if config_file.exists():
-                    import json
-                    with open(config_file, "r") as f:
-                        loaded_config = json.load(f)
+            def has_required_pt():
+                return model_pt.exists() and config_file.exists() and (tok_json.exists() or tok_pkl.exists())
 
-                seq_len = loaded_config.get("sequence_length", 30) if loaded_config else 30
-                emb_dim = loaded_config.get("embedding_dim", 50) if loaded_config else 50
-                lstm_u = loaded_config.get("lstm_units", 75) if loaded_config else 75
-                num_layers = loaded_config.get("num_lstm_layers", 1) if loaded_config else 1
-                dropout = loaded_config.get("dropout_rate", 0.2) if loaded_config else 0.2
-                vocab_size = loaded_config.get("vocab_size") if loaded_config else None
+            def has_required_h5():
+                return model_h5.exists() and config_file.exists() and (tok_json.exists() or tok_pkl.exists())
+
+            # Prefer PyTorch if present
+            if has_required_pt():
+                with open(config_file, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
 
                 generator = TextGenerator(
-                    sequence_length=seq_len,
-                    embedding_dim=emb_dim,
-                    lstm_units=lstm_u,
-                    num_lstm_layers=num_layers,
-                    dropout_rate=dropout,
-                    vocab_size=vocab_size,
+                    sequence_length=cfg.get("sequence_length", 30),
+                    embedding_dim=cfg.get("embedding_dim", 50),
+                    lstm_units=cfg.get("lstm_units", 75),
+                    num_lstm_layers=cfg.get("num_lstm_layers", 1),
+                    dropout_rate=cfg.get("dropout_rate", 0.2),
+                    vocab_size=cfg.get("vocab_size"),
                 )
-                if loaded_config:
-                    generator.config = loaded_config
-
-                generator.load_model(model_dir)
-                print(f"✓ PyTorch model loaded successfully from {model_dir}")
+                generator.config = cfg
+                print(f"[BOOT] Loading PyTorch model from {model_dir.resolve()} …")
+                # TextGenerator.load_model should handle tokenizer.json or .pkl internally
+                generator.load_model(str(model_dir))
+                print(f"✓ PyTorch model loaded successfully from {model_dir.resolve()}")
                 return
 
-            # Fallback: legacy Keras .h5 with config.json
-            if model_h5.exists() and config_file.exists():
-                import json
-                with open(config_file, "r") as f:
-                    loaded_config = json.load(f)
+            # Fallback: Keras .h5
+            if has_required_h5():
+                with open(config_file, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
 
                 generator = TextGenerator(
-                    sequence_length=loaded_config.get("sequence_length", 30),
-                    embedding_dim=loaded_config.get("embedding_dim", 50),
-                    lstm_units=loaded_config.get("lstm_units", 75),
-                    num_lstm_layers=loaded_config.get("num_lstm_layers", 1),
-                    dropout_rate=loaded_config.get("dropout_rate", 0.2),
-                    vocab_size=loaded_config.get("vocab_size"),
+                    sequence_length=cfg.get("sequence_length", 30),
+                    embedding_dim=cfg.get("embedding_dim", 50),
+                    lstm_units=cfg.get("lstm_units", 75),
+                    num_lstm_layers=cfg.get("num_lstm_layers", 1),
+                    dropout_rate=cfg.get("dropout_rate", 0.2),
+                    vocab_size=cfg.get("vocab_size"),
                 )
-                generator.config = loaded_config
-                generator.load_model(model_dir)
-                print(f"✓ Legacy Keras model loaded successfully from {model_dir}")
+                generator.config = cfg
+                print(f"[BOOT] Loading Keras model from {model_dir.resolve()} …")
+                generator.load_model(str(model_dir))
+                print(f"✓ Legacy Keras model loaded successfully from {model_dir.resolve()}")
                 return
 
-        print("⚠ Model not found. Please train the model first (python train.py).")
+            # Not found for this dir → print diagnostics
+            print(f"[WARN] Missing assets in {model_dir.resolve()}:")
+            print("  -", "[OK]" if model_pt.exists() else "[MISS]", model_pt.name)
+            print("  -", "[OK]" if model_h5.exists() else "[MISS]", model_h5.name)
+            print("  -", "[OK]" if config_file.exists() else "[MISS]", config_file.name)
+            print("  -", "[OK]" if tok_json.exists() else "[MISS]", tok_json.name)
+            print("  -", "[OK]" if tok_pkl.exists() else "[MISS]", tok_pkl.name)
+
+        print("⚠ Model not found. Place model.pt OR model.h5 + config.json + tokenizer.json|pkl under backend/saved_models/.")
 
     except Exception as e:
-        import traceback
         print(f"✗ Error loading model: {e}")
         print(traceback.format_exc())
 
