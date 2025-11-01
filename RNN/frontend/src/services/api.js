@@ -1,7 +1,10 @@
-// API service for communicating with the backend
+// frontend/src/api.js
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL =
+  import.meta.env?.VITE_API_BASE ||
+  process.env.REACT_APP_API_BASE ||
+  '/api';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -13,63 +16,38 @@ const apiClient = axios.create({
 export const api = {
   // Health check
   healthCheck: async () => {
-    try {
-      const response = await apiClient.get('/');
-      return response.data;
-    } catch (error) {
-      console.error('Health check failed:', error);
-      throw error;
-    }
+    const response = await apiClient.get('/health');
+    return response.data;
   },
 
   // Get model info
   getModelInfo: async () => {
-    try {
-      const response = await apiClient.get('/model/info');
-      return response.data;
-    } catch (error) {
-      console.error('Failed to get model info:', error);
-      throw error;
-    }
+    const response = await apiClient.get('/model-info');
+    return response.data;
   },
 
   // Generate text
   generateText: async (seedText, numWords = 50, temperature = 1.0) => {
-    try {
-      const response = await apiClient.post('/generate', {
-        seed_text: seedText,
-        num_words: numWords,
-        temperature: temperature,
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Failed to generate text:', error);
-      throw error;
-    }
+    const response = await apiClient.post('/generate', {
+      seed_text: seedText,
+      num_words: numWords,
+      temperature: temperature,
+    });
+    return response.data;
   },
 
   // Get stats
   getStats: async () => {
-    try {
-      const response = await apiClient.get('/stats');
-      return response.data;
-    } catch (error) {
-      console.error('Failed to get stats:', error);
-      throw error;
-    }
+    const response = await apiClient.get('/stats');
+    return response.data;
   },
 
-  // Get training history visualization
+  // Get training plot visualization
   getTrainingPlot: async () => {
-    try {
-      const response = await apiClient.get('/visualizations/training', {
-        responseType: 'blob',
-      });
-      return URL.createObjectURL(response.data);
-    } catch (error) {
-      console.error('Failed to get training plot:', error);
-      throw error;
-    }
+    const response = await apiClient.get('/visualizations/training', {
+      responseType: 'blob',
+    });
+    return URL.createObjectURL(response.data);
   },
 };
 
