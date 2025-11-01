@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import TextGenerator from './components/TextGenerator';
 import ModelInfo from './components/ModelInfo';
-import api from './services/api';
+import { rnnApi as api } from './services/rnnApi';
+
 import './App.css';
 
 function App() {
