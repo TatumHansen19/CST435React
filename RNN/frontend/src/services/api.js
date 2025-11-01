@@ -12,18 +12,26 @@ const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+async function tryGet(pathA, pathB) {
+  try {
+    const r = await apiClient.get(pathA);
+    return r.data;
+  } catch (e) {
+    if (!pathB) throw e;
+    const r2 = await apiClient.get(pathB); // fallback
+    return r2.data;
+  }
+}
+
 export const api = {
-  // Health check — your backend’s health is served at root (“/”).
-  // With baseURL '/api', this calls '/api/' which Vercel will rewrite to Railway '/'.
+  // Health check — try '/' then '/health'
   healthCheck: async () => {
-    const res = await apiClient.get('/');
-    return res.data;
+    return tryGet('/', '/health');
   },
 
-  // Model info
+  // Model info — try '/model/info' then '/model-info'
   getModelInfo: async () => {
-    const res = await apiClient.get('/model-info');
-    return res.data;
+    return tryGet('/model/info', '/model-info');
   },
 
   // Generate text
@@ -38,11 +46,10 @@ export const api = {
 
   // Stats
   getStats: async () => {
-    const res = await apiClient.get('/stats');
-    return res.data;
+    return tryGet('/stats');
   },
 
-  // Training plot image
+  // Training plot
   getTrainingPlot: async () => {
     const res = await apiClient.get('/visualizations/training', { responseType: 'blob' });
     return URL.createObjectURL(res.data);

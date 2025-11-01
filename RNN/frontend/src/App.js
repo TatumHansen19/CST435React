@@ -23,7 +23,8 @@ function App() {
       setConnectionError('');
     } catch (error) {
       setIsConnected(false);
-      setConnectionError('Cannot connect to backend API. Make sure the server is running on http://localhost:8000');
+      setConnectionError('Cannot connect to backend API. Make sure the server is reachable via /api');
+
     }
   };
 
