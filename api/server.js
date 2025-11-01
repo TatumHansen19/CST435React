@@ -17,6 +17,7 @@ app.use(express.json());
 
 // --- HEALTH ---
 app.get("/api/", (req, res) => res.json({ status: "healthy", service: "rnn-api" }));
+app.get("/api",  (req, res) => res.json({ status: "healthy", service: "rnn-api" })); // <— added
 app.get("/api/health", (req, res) => res.json({ status: "healthy", service: "rnn-api" }));
 
 // --- MODEL INFO (support both styles your UI might use) ---
