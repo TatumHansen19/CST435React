@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import TextGenerator from './components/TextGenerator';
 import ModelInfo from './components/ModelInfo';
-import { rnnApi as api } from './services/rnnApi';
-
+import { rnnApi as api } from './services/rnnApi';   // ✅ correct API client
 import './App.css';
 
 function App() {
@@ -10,22 +9,19 @@ function App() {
   const [connectionError, setConnectionError] = useState('');
 
   useEffect(() => {
-    // Check API connection on app load
     checkConnection();
-    // Recheck every 30 seconds
     const interval = setInterval(checkConnection, 30000);
     return () => clearInterval(interval);
   }, []);
 
   const checkConnection = async () => {
     try {
-      await api.healthCheck();
+      await api.health();   // ✅ FIXED HERE (healthCheck → health)
       setIsConnected(true);
       setConnectionError('');
     } catch (error) {
       setIsConnected(false);
       setConnectionError('Cannot connect to backend API. Make sure the server is reachable via /api');
-
     }
   };
 
