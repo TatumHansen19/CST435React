@@ -1,53 +1,51 @@
-// frontend/src/api.js
+// frontend/src/services/api.js
 import axios from 'axios';
 
+// Use env var if set, otherwise call relative /api (rewritten by Vercel)
 const API_BASE_URL =
-  import.meta.env?.VITE_API_BASE ||
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE) ||
   process.env.REACT_APP_API_BASE ||
   '/api';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
 });
 
 export const api = {
-  // Health check
+  // Health check — your backend’s health is served at root (“/”).
+  // With baseURL '/api', this calls '/api/' which Vercel will rewrite to Railway '/'.
   healthCheck: async () => {
-    const response = await apiClient.get('/health');
-    return response.data;
+    const res = await apiClient.get('/');
+    return res.data;
   },
 
-  // Get model info
+  // Model info
   getModelInfo: async () => {
-    const response = await apiClient.get('/model-info');
-    return response.data;
+    const res = await apiClient.get('/model-info');
+    return res.data;
   },
 
   // Generate text
   generateText: async (seedText, numWords = 50, temperature = 1.0) => {
-    const response = await apiClient.post('/generate', {
+    const res = await apiClient.post('/generate', {
       seed_text: seedText,
       num_words: numWords,
-      temperature: temperature,
+      temperature,
     });
-    return response.data;
+    return res.data;
   },
 
-  // Get stats
+  // Stats
   getStats: async () => {
-    const response = await apiClient.get('/stats');
-    return response.data;
+    const res = await apiClient.get('/stats');
+    return res.data;
   },
 
-  // Get training plot visualization
+  // Training plot image
   getTrainingPlot: async () => {
-    const response = await apiClient.get('/visualizations/training', {
-      responseType: 'blob',
-    });
-    return URL.createObjectURL(response.data);
+    const res = await apiClient.get('/visualizations/training', { responseType: 'blob' });
+    return URL.createObjectURL(res.data);
   },
 };
 
