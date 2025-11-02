@@ -10,14 +10,14 @@ beautifulsoup4==4.12.2
 # ---- Deep Learning (CPU) ----
 tensorflow-cpu==2.20.0     # has cp313
 tensorboard==2.20.0
-numpy==1.26.4               # ok for TF 2.20
+numpy>=2.1.0               # required for Python 3.13 (ml-dtypes dependency)
 
 # ---- DataFrame (needs cp313 wheel) ----
 pandas==2.2.3               # 2.2.3 publishes cp313 wheels
 
 # ---- Viz ----
 matplotlib==3.8.2
-seaborn==0.13.1
+seaborn==3.8.2
 plotly==5.18.0
 
 # ---- Model persistence ----
