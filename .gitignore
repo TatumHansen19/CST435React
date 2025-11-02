@@ -11,6 +11,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Model files (too large)
+*.pt
+*.pth
+
 # IDE
 .vscode/
 .idea/
