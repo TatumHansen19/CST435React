@@ -225,7 +225,62 @@ class GrammarConstrainedGenerator:
                     break
         
         print(f"✓ Generated {len(generated_words) - len(seed.split())} words")
-        return generated
+        
+        # Apply capitalization rules before returning
+        return self._apply_capitalization(generated)
+    
+    def _apply_capitalization(self, text: str) -> str:
+        """Apply capitalization rules to generated text.
+        
+        Rules:
+        1. Capitalize standalone 'i' to 'I'
+        2. Capitalize first letter after periods (. ! ?)
+        3. Capitalize the first letter of the text
+        
+        Args:
+            text: Generated text to capitalize
+            
+        Returns:
+            Text with proper capitalization
+        """
+        if not text:
+            return text
+        
+        # Split into words while preserving spaces
+        words = text.split()
+        
+        if not words:
+            return text
+        
+        # Capitalize first word
+        if words[0] and words[0][0].isalpha():
+            words[0] = words[0][0].upper() + words[0][1:]
+        
+        # Track if we need to capitalize next word (after sentence-ending punctuation)
+        capitalize_next = False
+        
+        for i in range(len(words)):
+            word = words[i]
+            
+            # Rule 1: Capitalize standalone 'i' to 'I'
+            if word == 'i':
+                words[i] = 'I'
+            
+            # Rule 2: Capitalize after sentence-ending punctuation
+            if capitalize_next and word and word[0].isalpha():
+                words[i] = word[0].upper() + word[1:]
+                capitalize_next = False
+            
+            # Check if this word ends with sentence-ending punctuation
+            if word and len(word) > 0:
+                # Check if word ends with . ! or ?
+                if word[-1] in '.!?':
+                    capitalize_next = True
+                # Also handle case where punctuation is a separate token
+                elif word in '.!?':
+                    capitalize_next = True
+        
+        return ' '.join(words)
 
 
 def compare_generation_methods(text_generator, seed: str = "the", num_words: int = 25):
