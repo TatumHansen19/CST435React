@@ -1,5 +1,9 @@
+// my-app/src/App.jsx
 import React from "react";
 import "./index.css";
+
+// Read API base from Vite env in prod; localhost in dev as fallback
+const API_BASE = (import.meta?.env?.VITE_API_BASE ?? "http://localhost:8000").replace(/\/+$/, "");
 
 const PROJECTS = [
   { id: 1, title: "Project 1", subtitle: "Starter Template", emoji: "🚀", slug: "project-1" },
@@ -13,13 +17,11 @@ const PROJECTS = [
 ];
 
 export default function App() {
-
   const handleLaunch = (slug, id) => {
     if (id === 5) {
-      // ✅ Launch the RNN project we copied into my-app/public/rnn/
+      // Launch the RNN page that lives in /public/rnn/
       window.location.href = "/rnn/";
     } else {
-      // Default (can be replaced later with actual pages)
       window.location.href = `/project/${slug}`;
     }
   };
@@ -39,10 +41,8 @@ export default function App() {
         {PROJECTS.map(({ id, title, subtitle, emoji, slug }) => (
           <article key={id} className="card" tabIndex={0}>
             <div className="badge">{emoji}</div>
-
             <h2 className="cardTitle">{title}</h2>
             <p className="cardText">{subtitle}</p>
-
             <div className="actions">
               <button className="btn primary" onClick={() => handleLaunch(slug, id)}>
                 Launch
@@ -56,9 +56,17 @@ export default function App() {
       </section>
 
       <footer className="footer">
-        <a className="link" href="/api/health" target="_blank" rel="noreferrer">
+        {/* Opens your Railway health endpoint explicitly */}
+        <a
+          className="link"
+          href={`${API_BASE}/api/health`}
+          target="_blank"
+          rel="noreferrer"
+        >
           API Health
         </a>
+        {/* (Optional) show which API base is active */}
+        {/* <span className="muted" style={{ marginLeft: 12 }}>API: {API_BASE}</span> */}
       </footer>
     </div>
   );

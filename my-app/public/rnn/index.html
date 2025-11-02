@@ -1,2 +1,70 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="theme-color" content="#667eea"/><meta name="description" content="RNN Text Generator - Generate creative text using LSTM Neural Networks"/><title>RNN Text Generator</title><script defer="defer" src="/rnn/static/js/main.8d88ae05.js"></script><link href="/rnn/static/css/main.c7ee9648.css" rel="stylesheet"></head><body><noscript>You need to enable JavaScript to run this app.</noscript><div id="root"></div></body></html>
-  <base href="/rnn/">
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="theme-color" content="#667eea"/>
+    <meta name="description" content="RNN Text Generator - Generate creative text using LSTM Neural Networks"/>
+    <title>RNN Text Generator</title>
+
+    <!-- Make all relative asset links resolve under /rnn/ -->
+    <base href="/rnn/">
+
+    <!-- 1) Choose API base at runtime (Vercel → Railway; local → localhost) -->
+    <script>
+      window.API_BASE = (location.hostname.endsWith("vercel.app") || location.hostname === "cst-435-react.vercel.app")
+        ? "https://cst435react-production.up.railway.app"
+        : "http://localhost:8000";
+    </script>
+
+    <!-- 2) Shim: rewrite localhost:/api/* calls to API_BASE -->
+    <script>
+      (function () {
+        const API_BASE = (window.API_BASE || "http://localhost:8000").replace(/\/+$/, "");
+        const LCL = /^(https?:\/\/)(localhost|127\.0\.0\.1):8000/i;
+
+        // fetch shim
+        const origFetch = window.fetch;
+        window.fetch = function(resource, init) {
+          try {
+            let url = resource instanceof Request ? resource.url : String(resource);
+
+            if (url.startsWith("/api/")) {
+              url = API_BASE + url;
+            } else if (LCL.test(url)) {
+              url = API_BASE + url.replace(LCL, "");
+            }
+
+            if (resource instanceof Request) resource = new Request(url, resource);
+            else resource = url;
+          } catch (_) {}
+          return origFetch(resource, init);
+        };
+
+        // XHR shim
+        const origOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+          try {
+            let u = String(url);
+            if (u.startsWith("/api/")) {
+              u = API_BASE + u;
+            } else if (LCL.test(u)) {
+              u = API_BASE + u.replace(LCL, "");
+            }
+            return origOpen.call(this, method, u, ...rest);
+          } catch (_) {
+            return origOpen.call(this, method, url, ...rest);
+          }
+        };
+      })();
+    </script>
+
+    <!-- Your built bundle/css -->
+    <script defer src="/rnn/static/js/main.8d88ae05.js"></script>
+    <link href="/rnn/static/css/main.c7ee9648.css" rel="stylesheet">
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
