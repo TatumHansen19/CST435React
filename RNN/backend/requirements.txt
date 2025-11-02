@@ -2,23 +2,21 @@
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
 python-multipart==0.0.6
-pydantic==2.12.3
+pydantic>=2.9.0
 python-dotenv==1.0.0
 requests==2.31.0
 beautifulsoup4==4.12.2
 
 # ---- Core compute ----
-numpy==1.24.3
+numpy>=2.1.0
 pandas==2.2.3
 
 # ---- PyTorch CPU ----
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.2.2+cpu
-torchvision==0.17.2+cpu
-torchaudio==2.2.2+cpu
+torch==2.5.1+cpu
 
 # ---- Viz ----
-matplotlib==3.10.7
+matplotlib>=3.9.0
 seaborn==0.13.1
 plotly==5.18.0
 
