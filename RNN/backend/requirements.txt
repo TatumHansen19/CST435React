@@ -1,31 +1,29 @@
-# Deep Learning
-tensorflow==2.15.0
-numpy==1.24.3
-
-# API Framework
+# ---- API runtime ----
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
 python-multipart==0.0.6
-
-# Utilities
 pydantic==2.5.0
 python-dotenv==1.0.0
+requests==2.31.0
+beautifulsoup4==4.12.2
 
-# Visualization
+# ---- Deep Learning (CPU) — compatible with Python 3.12 ----
+tensorflow-cpu==2.20.0
+tensorboard==2.20.0
+numpy==1.26.4
+pandas==2.2.2
+
+# ---- Viz (optional) ----
 matplotlib==3.8.2
 seaborn==0.13.1
 plotly==5.18.0
-tensorboard==2.15.1
 
-# Model Persistence
+# ---- Model persistence ----
 pickle-mixin==1.0.2
 
-# Data handling
-pandas==2.0.3
-
-# NLP and Grammar Checking
-spacy>=3.7.0
-
-# Web scraping (optional, for data download)
-requests==2.31.0
-beautifulsoup4==4.12.2
+# NOTE:
+# spaCy 3.7.x is NOT compatible with pydantic v2 / FastAPI v0.109.
+# If you need spaCy, either:
+#   (A) move it to a dev-only requirements file, or
+#   (B) downgrade FastAPI to a pydantic v1 stack.
+# For this API service, omit spaCy to avoid resolver conflicts.
