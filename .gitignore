@@ -13,6 +13,7 @@ __pycache__/
 
 # Model files (too large)
 *.pt
+!RNN/backend/saved_models/model.pt
 *.pth
 
 # IDE
