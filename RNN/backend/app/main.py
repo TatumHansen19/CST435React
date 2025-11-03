@@ -1,7 +1,3 @@
-"""
-FastAPI application for serving the RNN text generation model
-Provides REST API endpoints for text generation and model information
-"""
 
 from __future__ import annotations
 
