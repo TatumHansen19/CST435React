@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 import traceback
 import json
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 # Ensure local imports work (text_generator.py, models.py live one level up from this file)
 HERE = Path(__file__).parent.resolve()            # rnn/backend/app
@@ -39,12 +39,28 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-ALLOWED_ORIGINS = [
+# ------------------------------------------------------------
+# ✅ ADDING REQUEST LOGGING FOR /generate (THIS WAS THE PART YOU NEEDED)
+# ------------------------------------------------------------
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    if request.url.path.endswith("/generate") and request.method.upper() == "POST":
+        try:
+            body = await request.json()
+            print("\n[DEBUG] Incoming /generate payload:", body, "\n", flush=True)
+        except Exception:
+            print("\n[DEBUG] Incoming /generate payload: <could not parse>\n", flush=True)
+    return await call_next(request)
+
+# ------------------------------------------------------------
+
+ALLOWED_ORIGINS: List[str] = [
     "https://cst-435-react.vercel.app",
     "https://cst-435-react-git-main-tatums-projects-965c11b1.vercel.app",
     "https://cst-435-react-n8pzza1hs-tatums-projects-965c11b1.vercel.app",
     "http://localhost:5173",
 ]
+# Accept preview deployments that follow Vercel's pattern
 ORIGIN_REGEX = r"^https://cst-435-react(?:-[a-z0-9]+)?-tatums-projects-965c11b1\.vercel\.app$"
 
 app.add_middleware(
@@ -56,24 +72,23 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 
-# All endpoints live under /api so Vercel/Railway rewrites work
+# All primary endpoints live under /api so Vercel/Railway rewrites work
 api = APIRouter(prefix="/api")
 
 # -------------------------------------------------------------------
 # Model directory resolution
 # -------------------------------------------------------------------
 
-def _candidate_model_dirs() -> list[Path]:
+def _candidate_model_dirs() -> List[Path]:
     """
     Build an ordered list of candidate model directories.
     Priority:
-      1) $MODEL_DIR
-      2) $RNN_MODEL_DIR
-      3) rnn/backend/saved_models  (based on this file's location)
-      4) rnn/saved_models          (two levels up)
-      5) ./saved_models            (cwd fallback)
+      1) $MODEL_DIR or $RNN_MODEL_DIR
+      2) rnn/backend/saved_models  (based on this file's location)
+      3) rnn/saved_models          (two levels up)
+      4) ./saved_models            (cwd fallback)
     """
-    paths: list[Path] = []
+    paths: List[Path] = []
     env_model_dir = os.getenv("MODEL_DIR") or os.getenv("RNN_MODEL_DIR")
     if env_model_dir:
         try:
@@ -81,14 +96,12 @@ def _candidate_model_dirs() -> list[Path]:
         except Exception:
             pass
 
-    # This file is rnn/backend/app/main.py → parents[1] == rnn/backend
     paths += [
         (HERE.parent / "saved_models").resolve(),          # rnn/backend/saved_models
         (HERE.parent.parent / "saved_models").resolve(),   # rnn/saved_models
         (Path.cwd() / "saved_models").resolve(),           # working dir fallback
     ]
 
-    # de-duplicate preserving order
     seen, out = set(), []
     for p in paths:
         if p not in seen:
@@ -98,7 +111,7 @@ def _candidate_model_dirs() -> list[Path]:
 
 
 def _pick_model_dir() -> Optional[Path]:
-    searched = []
+    searched: List[str] = []
     for d in _candidate_model_dirs():
         searched.append(str(d))
         if d.is_dir() and (d / "config.json").exists() and (d / "tokenizer.json").exists():
@@ -109,7 +122,6 @@ def _pick_model_dir() -> Optional[Path]:
 
 
 def _is_lfs_pointer(path: Path) -> bool:
-    """Best-effort detection for Git LFS pointer files."""
     try:
         with path.open("rb") as f:
             head = f.read(64)
@@ -150,14 +162,9 @@ async def load_model() -> None:
             flush=True,
         )
 
-        if not cfg_path.exists():
-            raise FileNotFoundError(f"{cfg_path} missing → Model cannot load")
-
-        # Load config
         with cfg_path.open("r", encoding="utf-8") as f:
-            cfg = json.load(f)
+            cfg: Dict[str, Any] = json.load(f)
 
-        # Instantiate generator with config
         generator = TextGenerator(
             sequence_length=cfg.get("sequence_length", 30),
             embedding_dim=cfg.get("embedding_dim", 50),
@@ -168,38 +175,38 @@ async def load_model() -> None:
         )
         generator.config = cfg
 
-        # Helpful early check for LFS pointer
         if model_pt.exists() and _is_lfs_pointer(model_pt):
-            raise RuntimeError(
-                f"{model_pt} looks like a Git LFS pointer, not real weights. "
-                "Ensure your repo commits the real binary or your build runs "
-                "`git lfs install && git lfs fetch --all && git lfs checkout`."
-            )
+            raise RuntimeError("Model weights file is an LFS pointer instead of real weights.")
 
         print(f"[BOOT] Loading model from {MODEL_DIR} …", flush=True)
         generator.load_model(str(MODEL_DIR))
 
         if getattr(generator, "model", None) is None and getattr(generator, "torch_model", None) is None:
-            raise RuntimeError("Model object missing after load → check TextGenerator.load_model()")
+            raise RuntimeError("Model object missing after load")
 
         print("✅ MODEL LOADED SUCCESSFULLY", flush=True)
 
-    except Exception as e:
+    except Exception:
         print("❌ MODEL LOAD FAILED", flush=True)
         print(traceback.format_exc(), flush=True)
-        # keep app running so /api/health can report status
 
+# -------------------------------------------------------------------
+# Helpers
+# -------------------------------------------------------------------
+
+def _ready() -> bool:
+    return (
+        generator is not None and
+        (getattr(generator, "model", None) is not None or getattr(generator, "torch_model", None) is not None)
+    )
 
 # -------------------------------------------------------------------
 # API ROUTES
 # -------------------------------------------------------------------
+
 @api.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
-    ready = (
-        generator is not None and
-        (getattr(generator, "model", None) is not None or getattr(generator, "torch_model", None) is not None)
-    )
-    return HealthResponse(status="healthy" if ready else "model_not_loaded", model_loaded=ready)
+    return HealthResponse(status="healthy" if _ready() else "model_not_loaded", model_loaded=_ready())
 
 
 @api.get("/model-info", response_model=ModelInfo)
@@ -217,17 +224,10 @@ async def model_info() -> ModelInfo:
     )
 
 
-# Compatibility alias if frontend calls /model/info
-@app.get("/model/info")
-async def model_info_alias():
-    return await model_info()
-
-
 @api.post("/generate", response_model=GenerateResponse)
 async def generate_text(request: GenerateRequest) -> GenerateResponse:
-    if generator is None:
+    if not _ready() or generator is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
-
     text = generator.generate_text(
         seed_text=request.seed_text,
         num_words=request.num_words,
@@ -244,19 +244,47 @@ async def generate_text(request: GenerateRequest) -> GenerateResponse:
         temperature=request.temperature,
     )
 
+# ---------- Optional aliases (root-level) ----------
+@app.get("/model/info")
+async def model_info_alias():
+    return await model_info()
+
+@app.post("/generate")
+async def generate_alias(req: Request):
+    try:
+        body = await req.json()
+        gr = GenerateRequest(**body)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Bad payload for /generate")
+    return await generate_text(gr)
+
+@app.get("/stats")
+async def stats():
+    cfg = getattr(generator, "config", None) if generator else None
+    return {
+        "status": "ok",
+        "model_loaded": _ready(),
+        "vocab_size": (cfg or {}).get("vocab_size"),
+        "sequence_length": (cfg or {}).get("sequence_length"),
+    }
 
 app.include_router(api)
 
+# -------------------------------------------------------------------
+# Root + error handler
+# -------------------------------------------------------------------
 
 @app.get("/", include_in_schema=False)
 async def root():
-    return {"message": "RNN API Ready", "docs": "/docs"}
-
+    return {"message": "RNN API Ready", "docs": "/docs", "health": "/api/health"}
 
 @app.exception_handler(Exception)
-async def handler(request: Request, exc):
+async def handler(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"error": str(exc)})
 
+# -------------------------------------------------------------------
+# Entrypoint
+# -------------------------------------------------------------------
 
 if __name__ == "__main__":
     import uvicorn
