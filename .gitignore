@@ -16,6 +16,12 @@ __pycache__/
 !RNN/backend/saved_models/model.pt
 *.pth
 
+# Allow model files in Project 5
+!backend/projects/p5/saved_models/model.pt
+!backend/projects/p5/saved_models/tokenizer.json
+!backend/projects/p5/saved_models/config.json
+
+
 # IDE
 .vscode/
 .idea/
