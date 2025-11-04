@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://cst435-react2-production.up.railway.app/api/$1"
+    }
+  ]
+}
